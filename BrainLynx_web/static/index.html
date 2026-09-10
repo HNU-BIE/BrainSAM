@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>BrainSAM-LYNX Web</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>BrainSAM-LYNX <span class="sub">web</span></h1>
+      <div class="status-bar">
+        <span id="statusText" class="status-text">未加载文件</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel left">
+        <section>
+          <h2>1. 打开文件</h2>
+          <input id="folderPath" type="text" placeholder="服务器上的文件夹绝对路径" />
+          <button id="btnListFiles">列出 NIfTI 文件</button>
+          <div id="fileListBox" class="log-box file-list">先输入文件夹路径,点击"列出 NIfTI 文件"</div>
+        </section>
+
+        <section>
+          <h2>2. 视角</h2>
+          <div class="btn-row">
+            <button class="axis-btn" data-axis="0">Axis 0</button>
+            <button class="axis-btn" data-axis="1">Axis 1</button>
+            <button class="axis-btn" data-axis="2">Axis 2</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>3. 提示模式</h2>
+          <div class="btn-row">
+            <button id="modePoint" class="toggle active">点 (Point)</button>
+            <button id="modeBox" class="toggle">框 (Box)</button>
+          </div>
+          <p class="hint">左键 = 前景(绿) / 右键 = 背景(红)。框模式:按住左键拖拽。</p>
+        </section>
+
+        <section>
+          <h2>4. 对象 (Object)</h2>
+          <div class="btn-row">
+            <select id="objSelect"><option value="0">Object 1</option></select>
+            <button id="btnAddObj">+ 新对象</button>
+          </div>
+          <button id="btnClearPrompts">清除当前对象提示</button>
+        </section>
+
+        <section>
+          <h2>5. Mask 透明度</h2>
+          <input id="opacitySlider" type="range" min="0" max="100" value="50" />
+        </section>
+      </aside>
+
+      <main class="canvas-area">
+        <div id="canvasWrap">
+          <canvas id="baseCanvas"></canvas>
+          <canvas id="maskCanvas"></canvas>
+          <canvas id="overlayCanvas"></canvas>
+        </div>
+        <div class="slice-nav">
+          <input id="sliceSlider" type="range" min="0" max="0" value="0" />
+          <span id="sliceLabel">0 / 0</span>
+        </div>
+      </main>
+
+      <aside class="panel right">
+        <section>
+          <h2>6. 传播 (Propagate)</h2>
+          <div class="btn-row">
+            <button id="btnSetStart">设为起始帧</button>
+            <button id="btnSetEnd">设为结束帧</button>
+          </div>
+          <p class="hint">起始: <span id="startPageLabel">-</span> &nbsp; 结束: <span id="endPageLabel">-</span></p>
+          <button id="btnPropagate" class="primary">开始传播</button>
+          <div id="propagateProgress" class="log-box"></div>
+        </section>
+
+        <section>
+          <h2>7. 保存</h2>
+          <input id="savePath" type="text" placeholder="输出 .nii.gz 绝对路径" />
+          <label class="checkbox-row">
+            <input id="forceSave" type="checkbox" />
+            强制保存(缺失mask的帧填充为空白)
+          </label>
+          <button id="btnSave" class="primary">保存 Mask</button>
+          <div id="saveResult" class="log-box"></div>
+        </section>
+
+        <section>
+          <h2>8. 保存脑提取结果</h2>
+          <p class="hint">用上面保存的mask对原图做抠除(原图 × mask),需要先完成第7步保存mask。</p>
+          <input id="segPath" type="text" placeholder="输出 .nii.gz 绝对路径" />
+          <button id="btnSaveSeg" class="primary">保存提取结果</button>
+          <div id="segResult" class="log-box"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

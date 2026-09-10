@@ -1,0 +1,80 @@
+/* 轻浅灰风格的状态栏 QSS（浅灰背景 + 更深的文本）
+   使用方法：
+   self.statusBar.setStyleSheet(open('statusbar_styles.qss').read())
+   或在主窗口统一设置： self.setStyleSheet(open('statusbar_styles.qss').read())
+*/
+
+QStatusBar {
+    /* 浅灰横向渐变，整体更明亮 */
+    background: qlineargradient(
+        spread:pad, x1:0, y1:0, x2:1, y2:0,
+        stop:0 #f7f7f7,
+        stop:0.5 #f0f0f0,
+        stop:1 #e9e9e9
+    );
+    color: #222222; /* 深色文字以提高可读性 */
+    padding: 8px 14px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    font-family: "Segoe UI", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* 状态栏内的永久标签统一风格：浅灰背景上使用微暗底色以形成对比 */
+QStatusBar QLabel {
+    background: rgba(0,0,0,0.04); /* 很浅的暗色，用于突出文本 */
+    color: #222222;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-left: 6px;
+    margin-right: 6px;
+    min-height: 22px;
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* 悬停轻微加深以示交互 */
+QStatusBar QLabel:hover {
+    background: rgba(0,0,0,0.06);
+    color: #111111;
+}
+
+/* 特定标签（保留 embedding 的运行/完成状态选择器） */
+QStatusBar QLabel#embeddingLabel {
+    background: rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+/* 运行中 — 柔和的暖色 */
+QStatusBar QLabel#embeddingLabel[mode="running"] {
+    background: #F2E3B8;
+    color: #3a2f18;
+    border: 1px solid #D9C189;
+}
+
+/* 完成 — 柔和的绿色 */
+QStatusBar QLabel#embeddingLabel[mode="done"] {
+    background: #CFE8D0;
+    color: #17321a;
+    border: 1px solid #9FC08A;
+}
+
+/* Device 标签可单独微调（如果需要） */
+QStatusBar QLabel#deviceLabel {
+    background: rgba(0,0,0,0.02);
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+/* 如果在状态栏放置了分隔线（QFrame VLine），样式微调 */
+QStatusBar QFrame {
+    background: transparent;
+    color: rgba(0,0,0,0.12);
+}
+
+/* 工具提示在浅色背景上可见 */
+QToolTip {
+    background-color: #f2f2f2;
+    color: #222222;
+    border: 1px solid rgba(0,0,0,0.08);
+    padding: 4px;
+    border-radius: 4px;
+}

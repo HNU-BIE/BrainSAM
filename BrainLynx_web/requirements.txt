@@ -1,0 +1,8 @@
+# Install into your existing BrainSAM conda env — do NOT create a fresh env,
+# you need it to already have torch + sam2 + your project deps.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pillow
+numpy
+pydantic>=2
+websockets

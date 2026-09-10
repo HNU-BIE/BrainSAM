@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Environments
+.venv/
+venv/
+env/
+.conda/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model weights / checkpoints (can be GBs — do not commit; distribute separately)
+work_dir/*.pt
+work_dir/*.pth
+*.ckpt
+*.pt
+*.pth
+
+# Logs / experiment outputs
+sam2_logs/
+wandb_logs/
+wandb/
+*.log
+outputs/
+runs/
+
+# Data (never commit datasets, especially medical imaging data)
+*.nii
+*.nii.gz
+*.dcm
+
+# Results
+*.xlsx
+results*.csv
+
+# Jupyter
+.ipynb_checkpoints/

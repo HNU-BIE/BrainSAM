@@ -1,0 +1,20 @@
+QScrollBar:vertical {
+    background: #7F7F7F;         /* 深灰蓝轨道 */
+    width: 14px;
+    margin: 0px 0px 0px 0px;
+    border-radius: 7px;
+    border: 1px solid ;   /* 标准灰边框 */
+}
+QScrollBar::handle:vertical {
+    background: #737373;         /* 深石墨灰蓝滑块 */
+    min-height: 28px;
+    border-radius: 7px;
+    border: 1px solid ;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    background: none;
+    height: 0px;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
