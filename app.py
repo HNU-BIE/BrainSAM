@@ -17,12 +17,18 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QModelIndex, QObject
     QRectF
 import sys
 import os
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
-import PNG_inference
-import Continuous_Inference as CI
+
+try:
+    import Inference.Continuous_Inference as CI
+except ImportError as e:
+    print(f"[BrainSAM] Inference.Continuous_Inference 不可用，视频/传播推理相关功能将无法使用: {e}")
+    CI = None
 from sam2.build_sam import build_sam2, build_sam2_video_predictor
 from utils.nifti_reader import NIFTI_READER as nii_reader
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
@@ -61,7 +67,7 @@ def parse_coords(s:str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi(r"/home/Dinglin/PycharmProjects/BrainSAM920/ui/roi-lynx_v9211307.ui", self)
+        uic.loadUi(r"ui/index.ui", self)
         self.scene = QGraphicsScene()
         self.graphicsView.setScene(self.scene)
         self.graphicsView.setStyleSheet("background-color: black;")
@@ -237,7 +243,7 @@ class MainWindow(QMainWindow):
         layout_statuBar.setContentsMargins(0, 0, 0, 0)
         self.label_model = QLabel('Prompt: <b>Not allowed</b>')
         self.label_embedding = QLabel('Status: <b>No file</b>')
-        label_device = QLabel("Device: <b>Cuda 0</b>")
+        self.label_device = QLabel(f"Device: <b>{self._pick_device()}</b>")
         self.label_embedding.setTextFormat(Qt.RichText)
         self.label_embedding.setText('Status: <b>No file</b>')
         layout_statuBar.addWidget(QLabel(" | "))
@@ -245,12 +251,12 @@ class MainWindow(QMainWindow):
         layout_statuBar.addWidget(QLabel(" | "))
         layout_statuBar.addWidget(self.label_embedding)
         layout_statuBar.addWidget(QLabel(" | "))
-        layout_statuBar.addWidget(label_device)
+        layout_statuBar.addWidget(self.label_device)
         layout_statuBar.addWidget(QLabel(" | "))
         self.statusBar.showMessage("Load the image file to start.Support NIFTI, single picture or a set of pictures.")
         statusWidget.setLayout(layout_statuBar)
         self.statusBar.addPermanentWidget(statusWidget)
-        self.setStyleSheet(open('ui/statusbar_styles.qss').read())
+        self.setStyleSheet(open('ui/statusbar_styles.qss', encoding='utf-8').read())
 
         self.scene.mousePressEvent = self.mouse_press
         self.scene.mouseMoveEvent = self.mouse_move
@@ -260,26 +266,94 @@ class MainWindow(QMainWindow):
 
 
 
-        # build sam
-        self.sam2_model = build_sam2(
-            "configs/sam2.1/sam2.1_hiera_b+.yaml",
-            # "/home/Dinglin/WuDL/Data_Brain/new_0724/checkPoints/checkpoint_512_161.pt",
-            "/home/Dinglin/PycharmProjects/BrainSAM920/work_dirs/sam2.1_hiera_base_plus.pt",
-            device="cuda:0")
-        self.v_sam2_model = build_sam2_video_predictor(
-            # config_file="configs/sam2.1/sam2.1_hiera_b+.yaml",
-            config_file="configs/sam2.1/sam2.1_hiera_b+.yaml",
-            # ckpt_path="/home/Dinglin/WuDL/Data_Brain/new_0724/checkPoints/checkpoint_512_373.pt",
-            # ckpt_path="/home/Dinglin/WuDL/Data_Brain/new_0724/checkPoints/chk_blockface_b+.pt",
-            ckpt_path="/home/Dinglin/PycharmProjects/BrainSAM920/work_dirs/sam2.1_hiera_base_plus.pt",
-            device="cuda:0")
+        # build sam —— 不在启动时自动加载权重。改成手动:在"Video:"/"PNG:"两行里选好
+        # checkpoint 路径，再点 init_v / init_p 才真正 build 对应的模型；不点就是 None。
+        self.sam2_model = None
+        self.v_sam2_model = None
+        self.Button_choose_v_ck_path.clicked.connect(self.choose_v_ckpt_path)
+        self.Button_choose_i_ck_path.clicked.connect(self.choose_p_ckpt_path)
+        self.Button_init_v.clicked.connect(self.init_video_predictor)
+        self.Button_init_p.clicked.connect(self.init_image_predictor)
 
         #initial a file with assets/MRI_brain.nii.gz
-        self.load_source_file("./assets/MRI_brain.nii.gz")
-        self.Slider_SelectFiles.setValue(127)
+        self.load_source_file("./assets/human_T1.nii.gz")
+        # self.Slider_SelectFiles.setValue(127)
         self.comboBox.currentTextChanged.connect(self.switch_other_obj)
         layout_statuBar = QHBoxLayout()
         layout_statuBar.setContentsMargins(0, 0, 0, 0)
+
+    def _default_ckpt_dir(self):
+        """选择checkpoint文件对话框的默认目录：工作目录下的 work_dir。"""
+        work_dir = os.path.join(os.getcwd(), "work_dir")
+        os.makedirs(work_dir, exist_ok=True)
+        return work_dir
+
+    def _pick_device(self):
+        """有 CUDA 就用 cuda:0，没有就退回 cpu——不要不管硬件死写 'cuda:0'。"""
+        return "cuda:0" if torch.cuda.is_available() else "cpu"
+
+    def _set_device_label(self, device: str):
+        """更新状态栏最下方的 Device 标签，让它反映实际在用的设备。"""
+        if hasattr(self, "label_device"):
+            self.label_device.setText(f"Device: <b>{device}</b>")
+
+    def choose_v_ckpt_path(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择视频预测器(Video) Checkpoint",
+            self._default_ckpt_dir(),
+            "Checkpoint Files (*.pt *.pth);;All Files (*)",
+        )
+        if path:
+            self.lineEdit_v_ckp_path.setText(path)
+
+    def choose_p_ckpt_path(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择PNG/图像预测器 Checkpoint",
+            self._default_ckpt_dir(),
+            "Checkpoint Files (*.pt *.pth);;All Files (*)",
+        )
+        if path:
+            self.lineEdit_p_ckp_path.setText(path)
+
+    def init_video_predictor(self):
+        """点击 init_v：用 lineEdit_v_ckp_path 里的路径手动构建视频预测器；不点就一直是 None。"""
+        ckpt_path = self.lineEdit_v_ckp_path.text().strip()
+        if not ckpt_path or not os.path.isfile(ckpt_path):
+            self.speaker(f"[Video] checkpoint 路径无效，未构建: {ckpt_path}")
+            return
+        device = self._pick_device()
+        try:
+            self.v_sam2_model = build_sam2_video_predictor(
+                config_file="configs/sam2.1/sam2.1_hiera_b+.yaml",
+                ckpt_path=ckpt_path,
+                device=device,
+            )
+            self._set_device_label(device)
+            self.speaker(f"[Video] 模型加载成功: {ckpt_path} (device={device})")
+        except Exception as e:
+            self.v_sam2_model = None
+            self.speaker(f"[Video] 模型加载失败: {e}")
+            print(f"[BrainSAM] init_video_predictor failed: {e}")
+
+    def init_image_predictor(self):
+        """点击 init_p：用 lineEdit_p_ckp_path 里的路径手动构建PNG/图像预测器；不点就一直是 None。"""
+        ckpt_path = self.lineEdit_p_ckp_path.text().strip()
+        if not ckpt_path or not os.path.isfile(ckpt_path):
+            self.speaker(f"[PNG] checkpoint 路径无效，未构建: {ckpt_path}")
+            return
+        device = self._pick_device()
+        try:
+            self.sam2_model = build_sam2(
+                "configs/sam2.1/sam2.1_hiera_b+.yaml",
+                ckpt_path,
+                device=device,
+            )
+            self._set_device_label(device)
+            self.speaker(f"[PNG] 模型加载成功: {ckpt_path} (device={device})")
+        except Exception as e:
+            self.sam2_model = None
+            self.speaker(f"[PNG] 模型加载失败: {e}")
+            print(f"[BrainSAM] init_image_predictor failed: {e}")
 
     def state_reset(self):
         self.graphicsView.setTransform(QTransform())
@@ -1928,7 +2002,7 @@ class MainWindow(QMainWindow):
             # masks = mask
             if not self.CheckBox_to_two_sides.isChecked():
                 self.show_image(out_frame_idx) #here mixed use a function of show_image and show_slice
-                self.Slider_SelectFiles.setStyleSheet(open('ui/QScrollBar_styles.qss').read())
+                self.Slider_SelectFiles.setStyleSheet(open('ui/QScrollBar_styles.qss', encoding='utf-8').read())
 
                 self.Slider_SelectFiles.setValue(out_frame_idx)
             for i, mask in list(masks.items()):
