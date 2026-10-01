@@ -27,7 +27,7 @@ The pipeline is organized around two complementary concerns:
   * **Web app (`BrainLynx_web/`):** a FastAPI re-implementation of the same workflow for browser-based, multi-user access on a shared server.
   * **Evaluation scripts (`evaluate/`):** batch inference plus Dice / Surface Dice / Surface Distance (HD95) scoring against ground-truth masks.
 
-Across training and evaluation, BrainSAM has been used on data spanning **human, monkey, mouse, and rabbit** brains, and multiple MRI contrasts (T1, T2, PD, ASL/EPI, MRA, DWI, qT1, FLAIR).
+Across training and evaluation, BrainSAM has been used on data spanning **human, monkey, mouse, and rabbit** brains, and multiple MRI contrasts (T1, T2, ...).
 
 <p align="center">
   <img src="fig/fig1_overview.png" width="900" alt="BrainSAM pipeline overview"/>
