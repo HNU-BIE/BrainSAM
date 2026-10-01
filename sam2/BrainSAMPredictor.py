@@ -24,7 +24,7 @@ class BrainSAMPredictor(SAM2VideoPredictor):
         print(f"'lpeg' in kwargs: {'lpeg' in kwargs}")
         super().__init__(**kwargs)  
         
-        # embedding 注册
+        # embedding register
         if pos:
             self.pos = pos
         else:
@@ -97,6 +97,7 @@ class BrainSAMPredictor(SAM2VideoPredictor):
         device = inference_state["device"]
 
         if self.use_boundary_prior and hasattr(self.image_encoder, 'organ_embed'):
+            #create Prior Embedding Tree
             modal_idx = self.image_encoder.modal_index[
                 torch.tensor([modal_id], device=device)]                 # [1]
             o1_idx = self.image_encoder.brain_index_1[
@@ -151,7 +152,8 @@ class BrainSAMPredictor(SAM2VideoPredictor):
             zero_embed = self.image_encoder.organ_embed[0](torch.zeros(1, dtype=torch.long, device=device))
 
             organ_embed = [zero_embed, o1_embed, o2_embed, o3_embed, task_embed]
-            # 存入 inference_state 供后续帧使用
+
+            # Store into inference_state for use by subsequent frames
             inference_state["modal_embed"] = modal_embed
             inference_state["organ_embed"] = organ_embed
 
@@ -191,7 +193,7 @@ class BrainSAMPredictor(SAM2VideoPredictor):
         
         boundary_prior = inference_state.get("boundary_prior", None)
         
-        # B 维对齐(prior是[1,320],batch_size可能>1)
+        
         if boundary_prior is not None and boundary_prior.size(0) != batch_size:
             boundary_prior = boundary_prior.expand(batch_size, -1).contiguous()
 
@@ -254,15 +256,15 @@ class BrainSAMPredictor(SAM2VideoPredictor):
         device = inference_state["device"]
         image = inference_state["images"][frame_idx].to(device).float().unsqueeze(0)
         
-        # 获取 modal/organ embed
+        # get modal/organ embed
         modal = inference_state.get("modal_embed", None)
         organ = inference_state.get("organ_embed", None)
         
-        # 前向 backbone 获取 FPN 特征
+        # get FPN feature from Froward backbone 
         backbone_out = self.forward_image(image, modal=modal, organ=organ)
         fpn_feat = backbone_out["backbone_fpn"][-1]
         
-        # LPEG 生成点
+        # generate points
         with torch.no_grad():
             point_inputs, heatmap = self.lpeg.forward_with_heatmap(fpn_feat)
         
@@ -270,10 +272,10 @@ class BrainSAMPredictor(SAM2VideoPredictor):
         labels = point_inputs["point_labels"][0].cpu().numpy()    # [K]
         # heatmap_np = torch.sigmoid(heatmap[0, 0]).cpu().numpy()  # [H, W]
 
-        
+         # interpolate heatmap to oringin size H×W
         heatmap_full = F.interpolate(
             heatmap,
-            size=image.shape[-2:],   # 原图 H×W
+            size=image.shape[-2:],  
             mode="bilinear",
             align_corners=False,
         )

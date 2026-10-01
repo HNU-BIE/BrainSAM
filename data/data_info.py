@@ -58,9 +58,5 @@ task_list = [
     'T2_RabbitCor','T2_RabbitAxi','T2_MouseAxi','T2_MouseCor','T2_MouseSag','Optical_Monkey','T1_MonkeySag', 
     'T1_MonkeyCor', 'T1_MonkeyAxi',
 ]
-#文件名必须严格按照这个结构组成：
-#modal_spices_brain
-#其中，modal是modal_dict的key值;spieces_brain这两个在去掉连接符后，必须是brain_level_1_dict的value值之一。
-# tasklist是去掉文件编号的文件名列表
 task_idx = {k :i for i,k in enumerate(task_list)}
 

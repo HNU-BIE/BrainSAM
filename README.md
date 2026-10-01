@@ -2,75 +2,81 @@
 <<<<<<< HEAD
 =======
 
-基于 [SAM 2](https://github.com/facebookresearch/sam2)（Meta, Apache-2.0）二次开发的跨物种、跨模态脑结构分割模型。核心改动包括模态/器官先验嵌入（Embedding Tree）、Hiera backbone 深层 block 上的 Mixture-of-Adapters（MoA）路由，以及边界优化监督模块。项目同时提供训练/评测脚本、一个 PyQt5 桌面标注工具（`app.py`）和一个 Web 版标注工具（`Brain_web/`）。
+BrainSAM is a cross-species, cross-modality brain structure segmentation model built on top of [SAM 2](https://github.com/facebookresearch/sam2) (Meta, Apache-2.0). It adds a modality/organ prior-embedding mechanism ("Embedding Tree"), a Mixture-of-Adapters (MoA) routing module on the deeper blocks of the Hiera backbone, and a boundary-refinement supervision module. The repository also includes training/evaluation scripts, a PyQt5 desktop annotation tool (`app.py`), and a FastAPI-based web annotation tool (`BrainLynx_web/`).
 
-> 本仓库基于 Meta SAM 2 的 Apache-2.0 协议代码修改而来，见根目录 `LICENSE` 与 `NOTICE`。
+> This repository is derived from Meta's SAM 2 codebase under the Apache License, Version 2.0. See `LICENSE` and `NOTICE` in the repository root.
 
-## ⚠️ 使用前必读：部分入口脚本依赖未包含在本仓库中的模块
-
-以下文件在代码里 `import` 了 `PNG_inference`、`Continuous_Inference`（或 `inference.base_inference` / `inference.click_correction`），但这几个模块**当前没有出现在本仓库的任何目录里**：
-
-- `app.py`（PyQt5 桌面版入口）
-- `Brain_web/server.py`（Web 版后端）
-- `evaluate/evaluate.py`、`evaluate/evaluate_brainSAM.py`、`evaluate/correction_evaluate.py`（批量推理/评测脚本）
-
-也就是说，这几个脚本目前 `import` 就会失败，无法直接运行。在推到公开仓库前，需要确认：
-
-1. 这些模块是否本来就应该一起上传（如果是，把 `PNG_inference.py`、`Continuous_Inference.py` 和 `inference/` 这个包一起加进仓库）；
-2. 还是这些模块暂时是私有/未整理好的代码，故意不公开——如果是这种情况，建议在这里注明清楚，让使用者知道只有 `training/`（训练流水线）和 `sam2/`（核心模型代码）、`metrics/`（评测指标）是可以独立运行的，其余几个入口脚本仅供参考。
-
-`app.py` 第 64 行加载的 UI 文件 `roi-lynx_v9211307.ui` 在 `ui/` 目录里也不存在（目前只有 `v2`~`v5`），这一处按你的要求先保留原样，需要你自己确认后修正。
-
-## 目录结构
+## Repository layout
 
 ```
 BrainSAM/
-├── app.py              # PyQt5 桌面标注工具入口（依赖上述未包含的模块）
-├── Brain_web/          # Web 版标注工具（FastAPI），见其自带 README
-├── data/               # 数据集封装（BrainSAM 自己的 + 移植自 SAM2 的 sam2_dataset/）
-├── evaluate/           # 批量推理 + 指标计算脚本
-├── metrics/            # Dice / Surface Dice / Surface Distance 等评测指标
-├── sam2/               # 核心模型代码（基于 Meta SAM2 修改，含新增模块）
-├── training/           # 训练入口、loss、优化器、trainer
-├── ui/                 # Qt Designer 的 .ui / .qss 资源
-├── utils/              # NIfTI 读取等工具函数
-├── work_dir/           # 模型权重存放处（不提交进仓库，见 .gitignore）
-├── requirements.txt    # 项目依赖
+├── app.py              # PyQt5 desktop annotation/inference tool (main, working entry point)
+├── BrainLynx_web/      # FastAPI web annotation tool — see its own README
+├── Inference/          # Shared inference helpers used by app.py (and, partially, evaluate/)
+├── sam2/               # Core model code, adapted from Meta's SAM2 (includes BrainSAM's new modules)
+├── training/           # Training entry point, loss functions, optimizer, trainer
+├── evaluate/           # Batch inference + metric scripts — see "Evaluation: known issues" below
+├── data/               # Dataset wrappers (BrainSAM's own + SAM2's sam2_dataset/)
+├── utils/              # NIfTI I/O and misc helpers
+├── ui/                 # Qt Designer resources — index.ui is the current main-window layout
+├── assets/             # Sample NIfTI volumes (human/monkey/mouse/rabbit) used as demo data
+├── work_dir/           # Where checkpoints are expected to live locally (git-ignored)
+├── requirements.txt
 ├── setup.py
-├── LICENSE             # Apache-2.0（因基于 SAM2 修改而来）
-└── NOTICE              # 第三方代码来源与修改说明
+├── LICENSE             # Apache-2.0 (required because sam2/ is derived from SAM2)
+└── NOTICE              # Third-party attribution + summary of BrainSAM's own modifications
 ```
 
-## 环境安装
+## Installation
 
 ```bash
 conda create -n brainsam python=3.10
 conda activate brainsam
 pip install -r requirements.txt
-# 或者：pip install -e .   （setup.py 里声明了 core / web / gui / train 几组 extras）
+# or: pip install -e .   (setup.py declares optional extras: web / gui / train)
 ```
 
-`sam2/csrc/connected_components.cu` 是一段 CUDA 扩展源码；如果你需要用到它对应的算子，需要自行编写/补全构建它的 `setup.py` 步骤（当前 `setup.py` 未包含 CUDA 扩展的编译配置）。
+`sam2/csrc/connected_components.cu` is a CUDA extension source file; `setup.py` does not currently build it, so if you need that op you'll need to add the corresponding build step yourself.
 
-## 训练
+## Desktop app (`app.py`)
 
-训练入口是 `training/train.py`，基于 Hydra 读取 `sam2/configs/sam2.1_training/` 下的 yaml 配置（默认用的是 `sam2.1_hiera_b+BrainSAM.yaml`）。配置文件里 `img_folder` / `gt_folder` / `file_list_txt` 等数据路径原来写死指向作者本机路径，现已替换成 `/path/to/your/...` 占位符，**运行前请先改成你自己的数据路径**；`checkpoint.*.checkpoint_path` 和几个 `file_list_txt`（`training/assets/*.txt`）已经改成仓库内的相对路径，可以直接用。
+The app deliberately does **not** auto-load any model or checkpoint at startup — this lets the window open and the UI be inspected without a GPU or any checkpoint file present. Model loading is manual, via the "Video:" / "PNG:" row at the bottom of the window:
+
+1. Click the "..." button next to **Video:** or **PNG:** to pick a checkpoint file. The dialog opens in `work_dir/` by default.
+2. Click **init_v** (video predictor) or **init_p** (image predictor) to actually build that model from the selected checkpoint. Until you click Init, both predictors are `None` and segmentation is unavailable.
+3. The **Device** label at the bottom reflects whichever device was actually used the last time a predictor was (re)built — it auto-detects CUDA availability and falls back to CPU rather than being hardcoded.
+
+Two environment quirks already handled in `app.py`, worth knowing about if you touch the top of the file:
+
+- **`OMP: Error #15: Initializing libiomp5md.dll, but found libiomp5md.dll already initialized`** (Windows): this is a duplicate-OpenMP-runtime conflict between `torch`/`numpy`/`SimpleITK`/`cv2`, not an application bug. `app.py` sets `os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"` as the very first thing in the file, before any of those libraries are imported — keep it there; moving it below those imports silently brings the crash back.
+- **`UnicodeDecodeError: 'gbk' codec can't decode ...`** when reading `.qss` files: on Chinese Windows, `open()` defaults to the system codepage (GBK) rather than UTF-8. The `.qss`/text-file reads in `app.py` pass `encoding='utf-8'` explicitly — do the same for any new text file you read.
+
+## Web annotation tool (`BrainLynx_web/`)
+
+See `BrainLynx_web/README.md` for install/run instructions and known caveats. Note that its `server.py` still has a top-of-file `CONFIG` block (`PROJECT_ROOT`, `SAM2_CKPT`, etc.) that needs to be pointed at your own local paths before running.
+
+## Training
+
+The training entry point is `training/train.py`, which uses Hydra to read YAML configs from `sam2/configs/sam2.1_training/` (default: `sam2.1_hiera_b+BrainSAM.yaml`).
 
 ```bash
 python training/train.py --config sam2.1_training/sam2.1_hiera_b+BrainSAM.yaml
 ```
 
-（具体的 config 路径写法请以 `training/train.py` 里 hydra 的 config-module 搜索路径为准，这里未做实际训练验证，建议先用 `--help` 或直接读一遍该文件确认。）
+Data paths in that YAML (`img_folder`, `gt_folder`, the per-species `file_list_txt` entries) are placeholders (`/path/to/your/...`) and must be edited for your own data before training. The checkpoint path and the `training/assets/*.txt` split files are already repo-relative and work as-is.
 
-## 评测
+## Evaluation: known issues
 
-`evaluate/config.py` 里的 `EXPERIMENTS` 列表和 `get_args()` 是研究阶段的实验配置，路径已替换成占位符，实际使用前需要按自己的实验重新填写。`evaluate/evaluate.py` 是一个独立的、基于 argparse 的批量推理+指标脚本（但同样依赖上面提到的缺失的 `inference` 模块）。
+`evaluate/config.py` (`EXPERIMENTS` / `get_args()`) holds research-stage experiment configs with placeholder paths — edit it for your own runs. Beyond that, a few scripts in `evaluate/` currently have unresolved imports and will not run as-is:
 
-## Web 标注工具（Brain_web/）
+- `evaluate/evaluate.py` and `evaluate/evaluate_brainSAM.py` import from a lowercase `inference.base_inference`, but the package in this repo is `Inference/` (capital "I"). This happens to resolve on case-insensitive filesystems (Windows, default macOS) but raises `ModuleNotFoundError` on Linux or in CI. Fix by importing `Inference.base_inference` instead (or renaming the package — just be consistent).
+- `evaluate/evaluate_brainSAM.py` also imports `build_brainsam_predictor` from `inference.base_inference`, but that function isn't defined anywhere in `Inference/base_inference.py` — it needs to be added, or the import changed to wherever predictor construction actually lives (e.g. `sam2.build_sam.build_sam2_video_predictor`).
+- `evaluate/correction_evaluate.py` imports `inference.click_correction`, which doesn't exist anywhere in this repository — this script cannot currently run.
 
-见 `Brain_web/README.md`，里面已经写清楚了安装、运行方式和已知的未验证之处。
+None of the above affects the desktop app (`app.py`) or the training pipeline (`training/`), which are the actively working entry points.
 
-## 依赖来源与协议
+## License
 
+Apache License, Version 2.0 — see `LICENSE`. Most files under `sam2/` retain Meta's original copyright header because they are adapted from [SAM 2](https://github.com/facebookresearch/sam2); `NOTICE` summarizes what was changed for BrainSAM. `NOTICE` still has a `[TODO: your name / lab / organization]` placeholder — fill that in with the actual author/affiliation before publishing.
 `sam2/` 目录下大部分文件的版权头仍保留 Meta 的原始声明，因为这些文件是基于 [SAM 2](https://github.com/facebookresearch/sam2)（Apache-2.0）修改而来。完整协议见 `LICENSE`，修改说明见 `NOTICE`——上传前请把 `NOTICE` 里的 `[TODO: your name / lab / organization]` 替换成实际的作者/机构信息。
 >>>>>>> 7b6dcc5 (init)

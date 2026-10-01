@@ -30,6 +30,3 @@ uvicorn[standard]>=0.29
 pydantic>=2
 websockets
 
-# Optional (only needed by a handful of scripts — install if you hit an ImportError)
-# decord        # video decoding, used by a couple of dataset loaders
-# pycocotools   # COCO-format mask utilities, used by sam2/utils/amg.py

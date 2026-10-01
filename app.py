@@ -1,3 +1,11 @@
+import os
+# Must be set before importing torch / cv2 / numpy / SimpleITK (or anything else
+# that links OpenMP) — otherwise Windows raises "OMP: Error #15: Initializing
+# libiomp5md.dll, but found libiomp5md.dll already initialized." This has to be
+# the very first thing in the file; moving it below those imports (as happened
+# once already) silently brings the crash back.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import copy
 import json
 import re
@@ -16,8 +24,6 @@ from PyQt5.QtGui import QPixmap, QPainter, QImage, QColor, QPen, QBrush, QTransf
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QModelIndex, QObject, \
     QRectF
 import sys
-import os
-os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 import SimpleITK as sitk
 import matplotlib.pyplot as plt
 import numpy as np

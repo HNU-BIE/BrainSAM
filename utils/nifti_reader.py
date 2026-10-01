@@ -341,14 +341,4 @@ if __name__ == "__main__":
     print(f"brain_new shape:{zero.shape}")
 
 
-    # import nibabel as nib
-    # from nibabel.viewers import OrthoSlicer3D
-    #
-    # img = nib.load(r"W:\template_MNI152.nii.gz")  # 替换为你的文件路径
-    #
-    # # 获取图像数据（NumPy 数组）
-    # data = img.get_fdata()
-    # print(f"图像数据形状: {data.shape}")
-    # OrthoSlicer3D(data).show()
-    #
 
