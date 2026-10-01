@@ -29,6 +29,11 @@ The pipeline is organized around two complementary concerns:
 
 Across training and evaluation, BrainSAM has been used on data spanning **human, monkey, mouse, and rabbit** brains, and multiple MRI contrasts (T1, T2, PD, ASL/EPI, MRA, DWI, qT1, FLAIR).
 
+<p align="center">
+  <img src="fig/fig1_overview.png" width="900" alt="BrainSAM pipeline overview"/>
+</p>
+<p align="center"><em>Figure 1. BrainSAM pipeline overview — multi-species, multi-modality MRI input with prior information (modality, species, scanner, task), the BrainSAM model (Mixture-of-Adapters + Boundary Refine Module), and example outputs: full-brain segmentation, zero-shot generalization, and volumetric agreement analysis.</em></p>
+
 ## BrainSAM Pipeline
 
 ### 1. Data loading
@@ -38,6 +43,11 @@ NIfTI volumes are read and sliced along a configurable axis (`utils/nifti_reader
 ### 2. Core segmentation model
 
 `sam2/` holds the model code, adapted from Meta's SAM2.1 (`hiera_base_plus` backbone). On top of it, `sam2/modeling/Brainsam_base.py`, `BrainMaskDecoder.py`, and `LPEG.py` add BrainSAM's own modules: the Embedding Tree prior, the MoA adapters (added only to the trunk's deeper blocks, not the full backbone), and the boundary-refinement head. Everything else in the model — the neck, memory attention, memory encoder, and the pretrained parts of the mask decoder — is initialized from the official SAM 2.1 checkpoint.
+
+<p align="center">
+  <img src="fig/fig2_architecture.png" width="900" alt="BrainSAM model architecture"/>
+</p>
+<p align="center"><em>Figure 2. BrainSAM architecture — (a) overall workflow from prompts and prior tags to the segmented mask; (b) the Prior-Embedding Tree, which encodes [modality, order, species, scanner, task] into a prior embedding; (c) the Prior-guided Image Encoder, where a router feeds image embeddings into a Mixture-of-Adapters (MoA) network on the frozen Hiera trunk; (d) the Prior-guided Mask Decoder, with the Prior-FiLM conditioning block and the boundary-refinement convolution stack.</em></p>
 
 ### 3. Training
 
