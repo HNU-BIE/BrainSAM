@@ -42,7 +42,7 @@ NIfTI volumes are read and sliced along a configurable axis (`utils/nifti_reader
 
 ### 2. Core segmentation model
 
-`sam2/` holds the model code, adapted from Meta's SAM2.1 (`hiera_base_plus` backbone). On top of it, `sam2/modeling/Brainsam_base.py`, `BrainMaskDecoder.py`, and `LPEG.py` add BrainSAM's own modules: the Embedding Tree prior, the MoA adapters (added only to the trunk's deeper blocks, not the full backbone), and the boundary-refinement head. Everything else in the model — the neck, memory attention, memory encoder, and the pretrained parts of the mask decoder — is initialized from the official SAM 2.1 checkpoint.
+`sam2/` holds the model code, adapted from Meta's SAM2.1 (`hiera_base_plus` backbone). On top of it, `sam2/modeling/Brainsam_base.py`, `BrainMaskDecoder.py`: the Embedding Tree prior, the MoA adapters, and the boundary-refinement head. Everything else in the model — the neck, memory attention, memory encoder, and the pretrained parts of the mask decoder — is initialized from the official SAM 2.1 checkpoint.
 
 <p align="center">
   <img src="fig/fig2_architecture.png" width="900" alt="BrainSAM model architecture"/>
@@ -51,11 +51,11 @@ NIfTI volumes are read and sliced along a configurable axis (`utils/nifti_reader
 
 ### 3. Training
 
-`training/train.py` is the entry point; it uses Hydra to read YAML configs from `sam2/configs/sam2.1_training/` (default: `sam2.1_hiera_b+BrainSAM.yaml`), which define the loss weights (`training/loss_fns.py`), optimizer/LR schedule (`training/optimizer.py`), and per-species batch composition. Development training runs used 2× NVIDIA A6000 (24GB) GPUs.
+`training/train.py` is the entry point; it uses Hydra to read YAML configs from `sam2/configs/sam2.1_training/` (default: `sam2.1_hiera_b+BrainSAM.yaml`), which define the loss weights (`training/loss_fns.py`), optimizer/LR schedule (`training/optimizer.py`), and per-species batch composition. Development training runs used 2× NVIDIA A6000 (48GB) GPUs.
 
 ### 4. Interactive annotation
 
-The desktop app (`app.py`) and web app (`BrainLynx_web/`) both drive the same underlying predictors — an image predictor for single-frame/PNG prompting and a video predictor for mask propagation across a volume (`Inference/Continuous_Inference.py`). Neither tool auto-loads a model at startup: checkpoints are selected and built manually (see [Getting Started](#getting-started)), so the UI can be opened and inspected without a GPU.
+The desktop app (`app.py`) and web app (`BrainLynx_web/`) both drive the same underlying predictors — an image predictor for single-frame/PNG prompting and a video predictor for mask propagation across a volume (`Inference/Continuous_Inference.py`). 
 
 ### 5. Evaluation
 
@@ -68,7 +68,7 @@ BrainSAM has been developed and run on:
 - Windows (desktop app, web app)
 - Linux (training, batch evaluation)
 
-GPU acceleration (CUDA) is required for training and for GPU-backed inference; the desktop and web apps can also be opened and used in a CPU-only, no-checkpoint "UI inspection" mode (see [Getting Started](#getting-started)). Development training runs used **2× NVIDIA A6000 (24GB)** GPUs; no formal minimum RAM has been benchmarked, but enough system memory to hold full-volume NIfTI data and dataloader batches is recommended.
+GPU acceleration (CUDA) is required for training and for GPU-backed inference; the desktop and web apps can also be opened and used in a CPU-only. Development training runs used **2× NVIDIA A6000 (28GB)** GPUs; no formal minimum RAM has been benchmarked, but enough system memory to hold full-volume NIfTI data and dataloader batches is recommended.
 
 ## Installation
 
