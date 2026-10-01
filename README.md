@@ -73,7 +73,7 @@ pip install -r requirements.txt
 # or: pip install -e .   (setup.py declares optional extras: web / gui / train)
 ```
 
-`sam2/csrc/connected_components.cu` is a CUDA extension source file; `setup.py` does not currently build it, so if you need that op you'll need to add the corresponding build step yourself.
+
 
 ## 🚀 Getting Started
 
@@ -121,7 +121,7 @@ sam2_logs/
         └── checkpoint.pt
 ```
 
-**Evaluation** (see [Known Issues](#known-issues) for scripts that currently don't run):
+**Evaluation** :
 
 ```bash
 python evaluate/evaluate_brainSAM.py
@@ -136,13 +136,6 @@ python evaluate/evaluate_brainSAM.py
 └── results.xlsx                # Dice / ASD / HD95 per case, one sheet per experiment
 ```
 
-## ⚠️ Known Issues
-
-- `evaluate/evaluate.py` and `evaluate/evaluate_brainSAM.py` import from a lowercase `inference.base_inference`, but the package in this repo is `Inference/` (capital "I"). This resolves by accident on case-insensitive filesystems (Windows, default macOS) but raises `ModuleNotFoundError` on Linux or in CI.
-- `evaluate/evaluate_brainSAM.py` also imports `build_brainsam_predictor` from `inference.base_inference`, but that function isn't defined anywhere in `Inference/base_inference.py`.
-- `evaluate/correction_evaluate.py` imports `inference.click_correction`, which doesn't exist anywhere in this repository and currently cannot run.
-
-None of the above affects the desktop app (`app.py`) or the training pipeline (`training/`), which are the actively working entry points.
 
 ## 📜 License
 
