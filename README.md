@@ -7,7 +7,6 @@
 - [System Requirements](#system-requirements)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
-- [Known Issues](#known-issues)
 - [License](#license)
 
 ## ✨ Overview
