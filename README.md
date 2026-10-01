@@ -1,35 +1,72 @@
-# BrainSAM
-<<<<<<< HEAD
-=======
+# BrainSAM: A SAM2-based Pipeline for Cross-Species, Cross-Modality Brain Structure Segmentation
 
-BrainSAM is a cross-species, cross-modality brain structure segmentation model built on top of [SAM 2](https://github.com/facebookresearch/sam2) (Meta, Apache-2.0). It adds a modality/organ prior-embedding mechanism ("Embedding Tree"), a Mixture-of-Adapters (MoA) routing module on the deeper blocks of the Hiera backbone, and a boundary-refinement supervision module. The repository also includes training/evaluation scripts, a PyQt5 desktop annotation tool (`app.py`), and a FastAPI-based web annotation tool (`BrainLynx_web/`).
+# Contents
 
-> This repository is derived from Meta's SAM 2 codebase under the Apache License, Version 2.0. See `LICENSE` and `NOTICE` in the repository root.
+- [Overview](#overview)
+- [BrainSAM Pipeline](#brainsam-pipeline)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+- [Known Issues](#known-issues)
+- [License](#license)
 
-## Repository layout
+## ✨ Overview
 
-```
-BrainSAM/
-├── app.py              # PyQt5 desktop annotation/inference tool (main, working entry point)
-├── BrainLynx_web/      # FastAPI web annotation tool — see its own README
-├── Inference/          # Shared inference helpers used by app.py (and, partially, evaluate/)
-├── sam2/               # Core model code, adapted from Meta's SAM2 (includes BrainSAM's new modules)
-├── training/           # Training entry point, loss functions, optimizer, trainer
-├── evaluate/           # Batch inference + metric scripts — see "Evaluation: known issues" below
-├── data/               # Dataset wrappers (BrainSAM's own + SAM2's sam2_dataset/)
-├── utils/              # NIfTI I/O and misc helpers
-├── ui/                 # Qt Designer resources — index.ui is the current main-window layout
-├── assets/             # Sample NIfTI volumes (human/monkey/mouse/rabbit) used as demo data
-├── work_dir/           # Where checkpoints are expected to live locally (git-ignored)
-├── requirements.txt
-├── setup.py
-├── LICENSE             # Apache-2.0 (required because sam2/ is derived from SAM2)
-└── NOTICE              # Third-party attribution + summary of BrainSAM's own modifications
-```
+**BrainSAM** is an open-source, modular pipeline for brain structure segmentation across species and imaging modalities, built on top of [SAM 2](https://github.com/facebookresearch/sam2) (Meta, Apache-2.0). It extends SAM 2's image/video predictors with components specific to brain imaging, and wraps them in both a desktop and a web annotation tool so segmentation masks can be produced, corrected, and exported without writing code.
+
+The pipeline is organized around two complementary concerns:
+
+* **Core segmentation model** — SAM 2's Hiera backbone, mask decoder, and memory modules, extended with brain-specific components:
+
+  * **Embedding Tree:** a modality/organ prior-embedding mechanism that conditions the model on which species and structure it is segmenting.
+  * **Mixture-of-Adapters (MoA):** a routed adapter module inserted into the deeper blocks of the Hiera backbone.
+  * **Boundary Refinement Module (BRM):** a dedicated boundary-supervision head trained with a morphology-derived boundary ground truth.
+
+* **Annotation and evaluation tooling** — used to get data in, inspect/correct predictions, and score results:
+
+  * **Desktop app (`app.py`):** a PyQt5 tool for loading NIfTI volumes, prompting SAM2 with points/boxes, and propagating masks across slices.
+  * **Web app (`BrainLynx_web/`):** a FastAPI re-implementation of the same workflow for browser-based, multi-user access on a shared server.
+  * **Evaluation scripts (`evaluate/`):** batch inference plus Dice / Surface Dice / Surface Distance (HD95) scoring against ground-truth masks.
+
+Across training and evaluation, BrainSAM has been used on data spanning **human, monkey, mouse, and rabbit** brains, and multiple MRI contrasts (T1, T2, PD, ASL/EPI, MRA, DWI, qT1, FLAIR).
+
+## BrainSAM Pipeline
+
+### 1. Data loading
+
+NIfTI volumes are read and sliced along a configurable axis (`utils/nifti_reader.py`), with dataset wrappers in `data/` for training (`data/dataset.py`, `data/sam2_dataset/`, which is adapted from SAM 2's own video-dataset loader) and in `training/dataset/` for the training loop itself.
+
+### 2. Core segmentation model
+
+`sam2/` holds the model code, adapted from Meta's SAM2.1 (`hiera_base_plus` backbone). On top of it, `sam2/modeling/Brainsam_base.py`, `BrainMaskDecoder.py`, and `LPEG.py` add BrainSAM's own modules: the Embedding Tree prior, the MoA adapters (added only to the trunk's deeper blocks, not the full backbone), and the boundary-refinement head. Everything else in the model — the neck, memory attention, memory encoder, and the pretrained parts of the mask decoder — is initialized from the official SAM 2.1 checkpoint.
+
+### 3. Training
+
+`training/train.py` is the entry point; it uses Hydra to read YAML configs from `sam2/configs/sam2.1_training/` (default: `sam2.1_hiera_b+BrainSAM.yaml`), which define the loss weights (`training/loss_fns.py`), optimizer/LR schedule (`training/optimizer.py`), and per-species batch composition. Development training runs used 2× NVIDIA A6000 (24GB) GPUs.
+
+### 4. Interactive annotation
+
+The desktop app (`app.py`) and web app (`BrainLynx_web/`) both drive the same underlying predictors — an image predictor for single-frame/PNG prompting and a video predictor for mask propagation across a volume (`Inference/Continuous_Inference.py`). Neither tool auto-loads a model at startup: checkpoints are selected and built manually (see [Getting Started](#getting-started)), so the UI can be opened and inspected without a GPU.
+
+### 5. Evaluation
+
+`evaluate/` scripts run a built predictor over a folder of cases and report Dice, Average Surface Distance, and HD95 (`evaluate/metrics/`) against ground-truth masks, optionally resuming from a JSON progress log and writing results to an `.xlsx` workbook.
+
+## System Requirements
+
+BrainSAM has been developed and run on:
+
+- Windows (desktop app, web app)
+- Linux (training, batch evaluation)
+
+GPU acceleration (CUDA) is required for training and for GPU-backed inference; the desktop and web apps can also be opened and used in a CPU-only, no-checkpoint "UI inspection" mode (see [Getting Started](#getting-started)). Development training runs used **2× NVIDIA A6000 (24GB)** GPUs; no formal minimum RAM has been benchmarked, but enough system memory to hold full-volume NIfTI data and dataloader batches is recommended.
 
 ## Installation
 
 ```bash
+git clone <this-repository-url>
+cd BrainSAM
+
 conda create -n brainsam python=3.10
 conda activate brainsam
 pip install -r requirements.txt
@@ -38,45 +75,75 @@ pip install -r requirements.txt
 
 `sam2/csrc/connected_components.cu` is a CUDA extension source file; `setup.py` does not currently build it, so if you need that op you'll need to add the corresponding build step yourself.
 
-## Desktop app (`app.py`)
+## 🚀 Getting Started
 
-The app deliberately does **not** auto-load any model or checkpoint at startup — this lets the window open and the UI be inspected without a GPU or any checkpoint file present. Model loading is manual, via the "Video:" / "PNG:" row at the bottom of the window:
+### Configuration
 
-1. Click the "..." button next to **Video:** or **PNG:** to pick a checkpoint file. The dialog opens in `work_dir/` by default.
-2. Click **init_v** (video predictor) or **init_p** (image predictor) to actually build that model from the selected checkpoint. Until you click Init, both predictors are `None` and segmentation is unavailable.
-3. The **Device** label at the bottom reflects whichever device was actually used the last time a predictor was (re)built — it auto-detects CUDA availability and falls back to CPU rather than being hardcoded.
+Training and evaluation are both driven by config files rather than hardcoded paths:
 
-Two environment quirks already handled in `app.py`, worth knowing about if you touch the top of the file:
+- **`sam2/configs/sam2.1_training/*.yaml`** — training configs (data paths, loss weights, optimizer, schedule). The shipped `sam2.1_hiera_b+BrainSAM.yaml` has placeholder data paths (`/path/to/your/...`) that must be pointed at your own dataset before training; the checkpoint path and `training/assets/*.txt` split lists are already repo-relative.
+- **`evaluate/config.py`** — `EXPERIMENTS` / `get_args()` define per-species/modality evaluation runs; also placeholder paths, edit for your own experiments.
 
-- **`OMP: Error #15: Initializing libiomp5md.dll, but found libiomp5md.dll already initialized`** (Windows): this is a duplicate-OpenMP-runtime conflict between `torch`/`numpy`/`SimpleITK`/`cv2`, not an application bug. `app.py` sets `os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"` as the very first thing in the file, before any of those libraries are imported — keep it there; moving it below those imports silently brings the crash back.
-- **`UnicodeDecodeError: 'gbk' codec can't decode ...`** when reading `.qss` files: on Chinese Windows, `open()` defaults to the system codepage (GBK) rather than UTF-8. The `.qss`/text-file reads in `app.py` pass `encoding='utf-8'` explicitly — do the same for any new text file you read.
+### Running the Pipeline
 
-## Web annotation tool (`BrainLynx_web/`)
+**Desktop app:**
 
-See `BrainLynx_web/README.md` for install/run instructions and known caveats. Note that its `server.py` still has a top-of-file `CONFIG` block (`PROJECT_ROOT`, `SAM2_CKPT`, etc.) that needs to be pointed at your own local paths before running.
+```bash
+python app.py
+```
 
-## Training
+The app does **not** auto-load a model or checkpoint at startup. At the bottom of the window, use the "Video:" / "PNG:" row: click the "..." button to pick a checkpoint (the dialog opens in `work_dir/` by default), then click **init_v** / **init_p** to build that predictor. The **Device** label reflects whichever device was actually used the last time a predictor was built (CUDA if available, otherwise CPU).
 
-The training entry point is `training/train.py`, which uses Hydra to read YAML configs from `sam2/configs/sam2.1_training/` (default: `sam2.1_hiera_b+BrainSAM.yaml`).
+**Web app:**
+
+```bash
+cd BrainLynx_web
+pip install -r requirements.txt
+python server.py
+```
+
+Edit the `CONFIG` block at the top of `server.py` (`PROJECT_ROOT`, `SAM2_CKPT`, `HOST`/`PORT`) for your machine first; see `BrainLynx_web/README.md` for details and known caveats.
+
+**Training:**
 
 ```bash
 python training/train.py --config sam2.1_training/sam2.1_hiera_b+BrainSAM.yaml
 ```
 
-Data paths in that YAML (`img_folder`, `gt_folder`, the per-species `file_list_txt` entries) are placeholders (`/path/to/your/...`) and must be edited for your own data before training. The checkpoint path and the `training/assets/*.txt` split files are already repo-relative and work as-is.
+**Output structure** (training):
 
-## Evaluation: known issues
+```text
+sam2_logs/
+└── <config-name>/
+    ├── config.yaml              # resolved copy of the config used for this run
+    ├── config_resolved.yaml
+    └── checkpoints/
+        └── checkpoint.pt
+```
 
-`evaluate/config.py` (`EXPERIMENTS` / `get_args()`) holds research-stage experiment configs with placeholder paths — edit it for your own runs. Beyond that, a few scripts in `evaluate/` currently have unresolved imports and will not run as-is:
+**Evaluation** (see [Known Issues](#known-issues) for scripts that currently don't run):
 
-- `evaluate/evaluate.py` and `evaluate/evaluate_brainSAM.py` import from a lowercase `inference.base_inference`, but the package in this repo is `Inference/` (capital "I"). This happens to resolve on case-insensitive filesystems (Windows, default macOS) but raises `ModuleNotFoundError` on Linux or in CI. Fix by importing `Inference.base_inference` instead (or renaming the package — just be consistent).
-- `evaluate/evaluate_brainSAM.py` also imports `build_brainsam_predictor` from `inference.base_inference`, but that function isn't defined anywhere in `Inference/base_inference.py` — it needs to be added, or the import changed to wherever predictor construction actually lives (e.g. `sam2.build_sam.build_sam2_video_predictor`).
-- `evaluate/correction_evaluate.py` imports `inference.click_correction`, which doesn't exist anywhere in this repository — this script cannot currently run.
+```bash
+python evaluate/evaluate_brainSAM.py
+```
+
+**Output structure** (evaluation):
+
+```text
+<save_dir>/
+├── <case>_mask.nii.gz          # per-case predicted mask
+├── checkpoint_<sheet>.json     # resumable progress log
+└── results.xlsx                # Dice / ASD / HD95 per case, one sheet per experiment
+```
+
+## ⚠️ Known Issues
+
+- `evaluate/evaluate.py` and `evaluate/evaluate_brainSAM.py` import from a lowercase `inference.base_inference`, but the package in this repo is `Inference/` (capital "I"). This resolves by accident on case-insensitive filesystems (Windows, default macOS) but raises `ModuleNotFoundError` on Linux or in CI.
+- `evaluate/evaluate_brainSAM.py` also imports `build_brainsam_predictor` from `inference.base_inference`, but that function isn't defined anywhere in `Inference/base_inference.py`.
+- `evaluate/correction_evaluate.py` imports `inference.click_correction`, which doesn't exist anywhere in this repository and currently cannot run.
 
 None of the above affects the desktop app (`app.py`) or the training pipeline (`training/`), which are the actively working entry points.
 
-## License
+## 📜 License
 
-Apache License, Version 2.0 — see `LICENSE`. Most files under `sam2/` retain Meta's original copyright header because they are adapted from [SAM 2](https://github.com/facebookresearch/sam2); `NOTICE` summarizes what was changed for BrainSAM. `NOTICE` still has a `[TODO: your name / lab / organization]` placeholder — fill that in with the actual author/affiliation before publishing.
-`sam2/` 目录下大部分文件的版权头仍保留 Meta 的原始声明，因为这些文件是基于 [SAM 2](https://github.com/facebookresearch/sam2)（Apache-2.0）修改而来。完整协议见 `LICENSE`，修改说明见 `NOTICE`——上传前请把 `NOTICE` 里的 `[TODO: your name / lab / organization]` 替换成实际的作者/机构信息。
->>>>>>> 7b6dcc5 (init)
+BrainSAM is derived from Meta's SAM 2 codebase and is licensed under the **Apache License, Version 2.0** — see `LICENSE`. Most files under `sam2/` retain Meta's original copyright header; `NOTICE` summarizes what was changed for BrainSAM and should have the author/affiliation placeholder filled in before publishing.

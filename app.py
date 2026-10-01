@@ -39,10 +39,10 @@ from sam2.build_sam import build_sam2, build_sam2_video_predictor
 from utils.nifti_reader import NIFTI_READER as nii_reader
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 mask_colors=[
-    [173,216,230,1],#淡蓝色
-    [245,245,220,1],#米色
-    [255,228,225,1],#粉色
-    [189,252,201,1],#浅绿色
+    [173,216,230,1],
+    [245,245,220,1],
+    [255,228,225,1],
+    [189,252,201,1],
 ]
 
 def np2pixmap(np_img):
